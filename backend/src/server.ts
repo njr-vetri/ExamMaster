@@ -71,8 +71,8 @@ function trackUsage(userId: string, eventType: 'generation' | 'upload', estimate
   `).run(`${eventType}-${Date.now()}-${Math.random().toString(16).slice(2)}`, userId, eventType, todayKey(), estimatedTokens);
 }
 
-function getRandomApprovedQuestions(limit: number) {
-  const rows = db.prepare('SELECT * FROM questions WHERE approved = 1 ORDER BY RANDOM() LIMIT ?').all(limit) as any[];
+function getRandomApprovedQuestions(userId: string, limit: number) {
+  const rows = db.prepare('SELECT * FROM questions WHERE approved = 1 AND user_id = ? ORDER BY RANDOM() LIMIT ?').all(userId, limit) as any[];
   return rows.map(r => ({
     text: r.text,
     options: JSON.parse(r.options),
@@ -113,7 +113,7 @@ app.post('/api/generate', limitAiGenerations, upload.single('file'), async (req:
 
     const requestedCount = parseInt(questionCount) || 5;
     const reuseQuestions = reuseApproved !== 'false'
-      ? getRandomApprovedQuestions(Math.min(3, Math.max(1, Math.floor(requestedCount / 2))))
+      ? getRandomApprovedQuestions(req.user!.uid, Math.min(3, Math.max(1, Math.floor(requestedCount / 2))))
       : [];
 
     // Generate questions via Groq (switch import at top to use Gemini instead)
@@ -151,7 +151,7 @@ app.post('/api/generate', limitAiGenerations, upload.single('file'), async (req:
 // ──────────────────────────────────────────
 
 // Save approved questions to DB
-app.post('/api/questions', async (req, res) => {
+app.post('/api/questions', async (req: AuthedRequest, res) => {
   try {
     const { questions } = req.body;
     if (!Array.isArray(questions) || questions.length === 0) {
@@ -165,12 +165,13 @@ app.post('/api/questions', async (req, res) => {
       if (!isDuplicate) {
         const inserted = db.prepare(`
           INSERT OR REPLACE INTO questions
-            (id, subject, text, text_tamil, options, options_tamil,
+            (id, user_id, subject, text, text_tamil, options, options_tamil,
              correct_option_index, explanation, explanation_tamil,
              language, difficulty, approved)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           q.id,
+          req.user!.uid,
           q.subject,
           q.text,
           q.textTamil || null,
@@ -194,11 +195,11 @@ app.post('/api/questions', async (req, res) => {
 });
 
 // List all approved questions (with optional filters)
-app.get('/api/questions', (req, res) => {
+app.get('/api/questions', (req: AuthedRequest, res) => {
   try {
     const { subject, language, difficulty, approved } = req.query;
-    let sql = 'SELECT * FROM questions WHERE 1=1';
-    const params: any[] = [];
+    let sql = 'SELECT * FROM questions WHERE user_id = ?';
+    const params: any[] = [req.user!.uid];
 
     if (subject) { sql += ' AND subject = ?'; params.push(subject); }
     if (language) { sql += ' AND language = ?'; params.push(language); }
@@ -230,11 +231,11 @@ app.get('/api/questions', (req, res) => {
 });
 
 // Approve or reject a question (admin action)
-app.patch('/api/questions/:id/approve', (req, res) => {
+app.patch('/api/questions/:id/approve', (req: AuthedRequest, res) => {
   try {
     const { id } = req.params;
     const { approved } = req.body;
-    db.prepare('UPDATE questions SET approved = ? WHERE id = ?').run(approved ? 1 : 0, id);
+    db.prepare('UPDATE questions SET approved = ? WHERE id = ? AND user_id = ?').run(approved ? 1 : 0, id, req.user!.uid);
     return res.json({ ok: true });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -242,9 +243,9 @@ app.patch('/api/questions/:id/approve', (req, res) => {
 });
 
 // Delete a question
-app.delete('/api/questions/:id', (req, res) => {
+app.delete('/api/questions/:id', (req: AuthedRequest, res) => {
   try {
-    db.prepare('DELETE FROM questions WHERE id = ?').run(req.params.id);
+    db.prepare('DELETE FROM questions WHERE id = ? AND user_id = ?').run(req.params.id, req.user!.uid);
     return res.json({ ok: true });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -254,16 +255,16 @@ app.delete('/api/questions/:id', (req, res) => {
 // ──────────────────────────────────────────
 // MOCK TESTS — SAVE / LIST
 // ──────────────────────────────────────────
-app.post('/api/tests', (req, res) => {
+app.post('/api/tests', (req: AuthedRequest, res) => {
   try {
     const t = req.body;
     db.prepare(`
       INSERT OR REPLACE INTO mock_tests
-        (id, title, subject, created_at, language, difficulty, questions,
+        (id, user_id, title, subject, created_at, language, difficulty, questions,
          score, correct_count, time_spent, total_time, selected_answers, is_completed)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      t.id, t.title, t.subject, t.createdAt, t.language, t.difficulty,
+      t.id, req.user!.uid, t.title, t.subject, t.createdAt, t.language, t.difficulty,
       JSON.stringify(t.questions),
       t.score ?? null, t.correctCount ?? null, t.timeSpent ?? null,
       t.totalTime, t.selectedAnswers ? JSON.stringify(t.selectedAnswers) : null,
@@ -275,9 +276,9 @@ app.post('/api/tests', (req, res) => {
   }
 });
 
-app.get('/api/tests', (_req, res) => {
+app.get('/api/tests', (req: AuthedRequest, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM mock_tests ORDER BY rowid DESC').all() as any[];
+    const rows = db.prepare('SELECT * FROM mock_tests WHERE user_id = ? ORDER BY rowid DESC').all(req.user!.uid) as any[];
     const tests = rows.map(r => ({
       id: r.id,
       title: r.title,

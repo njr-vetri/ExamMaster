@@ -28,9 +28,10 @@ interface GenerateParams {
   mimeType?: string;
   apiKey?: string;
   reuseQuestions?: any[];
+  excludeQuestionTexts?: string[];
 }
 
-export async function generateQuestions(params: GenerateParams) {
+async function generateQuestionsSingleBatch(params: GenerateParams) {
   const {
     subject,
     language,
@@ -38,7 +39,8 @@ export async function generateQuestions(params: GenerateParams) {
     questionCount,
     optionsCount,
     extractedText,
-    reuseQuestions
+    reuseQuestions,
+    excludeQuestionTexts
   } = params;
 
   const langInstruction = {
@@ -64,7 +66,11 @@ export async function generateQuestions(params: GenerateParams) {
     : `\n\nGenerate questions based on standard ${subject} curriculum knowledge.`;
 
   const reuseContext = reuseQuestions?.length
-    ? `\n\nYou may reuse or adapt these approved prior questions where relevant. Mix them naturally with new questions:\n${JSON.stringify(reuseQuestions).slice(0, 2500)}`
+    ? `\n\nYou may reuse or adapt these approved prior questions where relevant. Mix them naturally with new questions:\n${JSON.stringify(reuseQuestions).slice(0, 1500)}`
+    : '';
+
+  const excludeContext = excludeQuestionTexts?.length
+    ? `\n\nAvoid generating questions similar to these already generated questions:\n- ${excludeQuestionTexts.join('\n- ')}`
     : '';
 
   const prompt = `You are an expert exam question generator for Tamil Nadu students.
@@ -76,6 +82,7 @@ Number of questions: ${questionCount}
 Number of options per question: ${optionsCount}
 ${contentContext}
 ${reuseContext}
+${excludeContext}
 
 Generate exactly ${questionCount} multiple-choice questions.
 
@@ -104,7 +111,8 @@ Rules:
     const cachePayload = JSON.stringify({
       subject, language, difficulty, questionCount, optionsCount,
       extractedText: extractedText || '',
-      reuseIds: reuseQuestions?.map(q => q.id) || []
+      reuseIds: reuseQuestions?.map(q => q.id) || [],
+      excludeQuestionTexts: excludeQuestionTexts || []
     });
     const cacheKey = crypto.createHash('sha256').update(cachePayload).digest('hex');
 
@@ -116,22 +124,44 @@ Rules:
 
     // Call Groq (using Llama-3 8B which is lightning fast and free)
     const groq = getGroq();
+    // Compute max_tokens dynamically. For 10 bilingual questions, 3000 tokens is perfect.
+    const dynamicMaxTokens = Math.min(4500, Math.max(1000, questionCount * 300));
+    
     const chatCompletion = await groq.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],
       model: 'llama-3.1-8b-instant',
       temperature: 0.5,
-      max_tokens: 8000,
+      max_tokens: dynamicMaxTokens,
     });
 
     const responseText = chatCompletion.choices[0]?.message?.content || '[]';
 
     // Parse the JSON response
-    const cleaned = responseText
+    let cleaned = responseText
       .replace(/```json/g, '')
       .replace(/```/g, '')
       .trim();
 
-    const parsed = JSON.parse(cleaned);
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (parseError) {
+      // If the JSON got cut off (token limit reached), try to recover the completed questions
+      console.warn("AI response was cut off. Attempting to recover completed questions...");
+      const lastBraceIndex = cleaned.lastIndexOf('}');
+      if (lastBraceIndex !== -1) {
+        // Find the last complete object and close the array
+        const truncated = cleaned.substring(0, lastBraceIndex + 1) + ']';
+        try {
+          parsed = JSON.parse(truncated);
+          console.log(`Successfully recovered ${parsed.length} questions from cut-off response.`);
+        } catch (recoveryError) {
+          throw new Error('Could not recover cut-off JSON: ' + (recoveryError as Error).message);
+        }
+      } else {
+        throw parseError; // Rethrow original if recovery completely fails
+      }
+    }
 
     // Attach IDs, subject, language, difficulty, approved=false
     const finalQuestions = parsed.map((q: any) => ({
@@ -156,6 +186,57 @@ Rules:
     console.error('Groq generation error:', err.message);
     throw new Error('AI question generation failed (Groq): ' + err.message);
   }
+}
+
+export async function generateQuestions(params: GenerateParams) {
+  const requestedCount = params.questionCount;
+  
+  if (requestedCount <= 10) {
+    return generateQuestionsSingleBatch(params);
+  }
+
+  console.log(`Requested ${requestedCount} questions. Splitting into batches of 10...`);
+  const allQuestions: any[] = [];
+  let remaining = requestedCount;
+  
+  while (remaining > 0) {
+    const currentBatchSize = Math.min(remaining, 10);
+    console.log(`Generating batch of ${currentBatchSize} questions (${remaining} remaining)...`);
+    
+    try {
+      const batchParams: GenerateParams = {
+        ...params,
+        questionCount: currentBatchSize,
+        excludeQuestionTexts: allQuestions.map(q => q.text)
+      };
+
+      const batchResult = await generateQuestionsSingleBatch(batchParams);
+      if (batchResult && batchResult.length > 0) {
+        allQuestions.push(...batchResult);
+      } else {
+        console.warn('Batch generation returned empty results. Stopping.');
+        break;
+      }
+    } catch (batchError) {
+      console.error('Error generating batch:', batchError);
+      // If we have some questions generated, we can stop and return what we got rather than failing entirely
+      if (allQuestions.length > 0) {
+        console.warn(`Returning partial results: ${allQuestions.length} of ${requestedCount} questions.`);
+        break;
+      } else {
+        throw batchError;
+      }
+    }
+
+    remaining -= currentBatchSize;
+    
+    // Add a short delay to stay within rate limits (RPM/TPM)
+    if (remaining > 0) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+
+  return allQuestions;
 }
 
 // ----------------------------------------------------

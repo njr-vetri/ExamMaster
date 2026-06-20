@@ -21,31 +21,56 @@ const EXAM_SYLLABI = [
     exam: 'TNPSC Group 4',
     color: 'text-blue-600',
     bg: 'bg-blue-50',
-    chapters: ['General Tamil (Part A)', 'General Science', 'Indian Polity', 'Geography of India', 'Indian Economy', 'Indian National Movement', 'Aptitude & Mental Ability']
+    chapters: [
+      'General Tamil: Grammar & Literature (இலக்கணம், இலக்கியம்)', 
+      'General Science: Physics & Chemistry basics', 
+      'Indian Polity: Constitution, Parliament, Panchayat Raj', 
+      'Geography: Monsoon, Rainfall, Crops, Transport', 
+      'Indian Economy: Five Year Plans, RBI, GST', 
+      'History: Indus Valley, Guptas, Mughals, Marathas'
+    ]
   },
   {
     exam: 'UPSC Prelims',
     color: 'text-amber-600',
     bg: 'bg-amber-50',
-    chapters: ['Current Events', 'History of India', 'Indian & World Geography', 'Indian Polity & Governance', 'Economic & Social Development', 'General Science', 'Environment & Ecology']
+    chapters: [
+      'Indian Polity: Fundamental Rights, Judiciary, Executive', 
+      'Modern History: Indian National Movement (1857-1947)', 
+      'Geography: Indian & World physical geography', 
+      'Economy: Inflation, Banking, GDP, Poverty', 
+      'Environment: Climate Change, Biodiversity, Treaties'
+    ]
   },
   {
     exam: 'NEET UG (Biology)',
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
-    chapters: ['Diversity in Living World', 'Structural Organisation in Plants/Animals', 'Cell Structure and Function', 'Plant Physiology', 'Human Physiology', 'Genetics and Evolution', 'Biotechnology']
+    chapters: [
+      'Cell Biology: Structure, Cycle, Mitosis, Meiosis', 
+      'Human Physiology: Digestion, Respiration, Circulation', 
+      'Genetics: Mendelian Inheritance, DNA Structure, Mutation', 
+      'Ecology: Ecosystems, Biodiversity, Conservation',
+      'Biotechnology: Recombinant DNA, CRISPR, Applications'
+    ]
   },
   {
     exam: 'JEE Main (Physics)',
     color: 'text-purple-600',
     bg: 'bg-purple-50',
-    chapters: ['Kinematics', 'Laws of Motion', 'Thermodynamics', 'Electromagnetism', 'Optics', 'Modern Physics', 'Electronic Devices']
+    chapters: [
+      'Kinematics: 1D & 2D Motion, Projectiles, Vectors', 
+      'Laws of Motion: Newton\'s Laws, Friction, Circular Motion', 
+      'Thermodynamics: Laws of Thermo, Heat Engines, Calorimetry', 
+      'Electromagnetism: Gauss Law, Capacitance, AC Circuits', 
+      'Optics: Ray Optics, Wave Optics, Interference'
+    ]
   }
 ];
 
 export default function UploadMaterialView({ onGenerate }: UploadMaterialViewProps) {
   const [subject, setSubject] = useState('');
-  const [language, setLanguage] = useState<ExamLanguage>('bilingual');
+  const [language, setLanguage] = useState<ExamLanguage>('english');
   const [difficulty, setDifficulty] = useState<ExamDifficulty>('medium');
   const [questionCount, setQuestionCount] = useState<number>(5);
   const [optionsCount, setOptionsCount] = useState<number>(4);
@@ -199,9 +224,33 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
           <Upload className="h-6 w-6 text-indigo-600" />
           Create AI Mock Test
         </h1>
-        <p className="text-slate-500 max-w-2xl text-sm">
+        <p className="text-slate-700 max-w-2xl text-sm">
           Upload slides, syllabi, PDF notes, or screenshots, choose exam options, and watch our artificial intelligence build custom academic questions with rich explanations.
         </p>
+      </div>
+
+      {/* Horizontal Step Guide */}
+      <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 select-none">
+        <div className="flex items-center gap-2 text-xs font-black text-slate-700 shrink-0 uppercase tracking-wider">
+          <Sparkles className="h-4.5 w-4.5 text-indigo-600 fill-current" />
+          <span>Need 50 or 100 questions?</span>
+        </div>
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 md:gap-5 text-2xs text-slate-550 font-bold">
+          <div className="flex items-center gap-1.5">
+            <span className="h-5 w-5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center text-[10px]">1</span>
+            Generate 5 or 10 questions
+          </div>
+          <span className="hidden sm:inline text-slate-700 font-medium">➔</span>
+          <div className="flex items-center gap-1.5">
+            <span className="h-5 w-5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center text-[10px]">2</span>
+            Click "Save to Bank"
+          </div>
+          <span className="hidden sm:inline text-slate-700 font-medium">➔</span>
+          <div className="flex items-center gap-1.5">
+            <span className="h-5 w-5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center text-[10px]">3</span>
+            Combine blocks in Question Bank
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -210,7 +259,7 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
           
           {/* Upload Area */}
           <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
               1. Study Material Source
             </label>
             
@@ -244,7 +293,7 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
                 <h3 className="text-sm font-semibold text-slate-850">
                   Drag and drop files here, or <span className="text-indigo-600 hover:underline">browse</span>
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-slate-800 mt-1">
                   Supports PDF, PNG, JPG, DOCX (Max 25MB)
                 </p>
               </div>
@@ -291,7 +340,7 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Subject Input */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 2. Academic Subject
               </label>
               <div className="relative">
@@ -302,14 +351,14 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="e.g. Physics, Chemistry, Indian History..."
-                  className="w-full px-4 py-2.5 bg-slate-50 hover:bg-slate-50/60 focus:bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-150 rounded-xl outline-hidden text-sm transition-all text-slate-800"
+                  className="w-full px-4 py-2.5 bg-slate-50 hover:bg-slate-50/60 focus:bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-150 rounded-xl outline-hidden text-sm transition-all text-slate-800 placeholder:text-slate-700"
                 />
               </div>
             </div>
 
             {/* Language Selector */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 3. Language Medium
               </label>
               <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
@@ -321,7 +370,7 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
                     className={`py-1.5 text-xs font-semibold rounded-lg capitalize transition-all ${
                       language === lang
                         ? 'bg-white text-slate-800 shadow-3xs'
-                        : 'text-slate-500 hover:text-slate-800'
+                        : 'text-slate-700 hover:text-slate-800'
                     }`}
                   >
                     {lang === 'bilingual' ? 'Bilingual (இருமொழி)' : lang}
@@ -334,7 +383,7 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Difficulty Picker */}
             <div className="space-y-2">
-              <label htmlFor="difficulty-picker" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <label htmlFor="difficulty-picker" className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 4. Exam Difficulty
               </label>
               <select
@@ -353,19 +402,19 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
 
             {/* Number of queries */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 5. Total Questions
               </label>
-              <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl justify-between">
-                {[3, 5, 8, 10].map((num) => (
+              <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-xl justify-between">
+                {[5, 10].map((num) => (
                   <button
                     key={num}
                     type="button"
                     onClick={() => setQuestionCount(num)}
-                    className={`w-full py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    className={`flex-1 min-w-[32px] py-1.5 text-xs font-bold rounded-lg transition-all ${
                       questionCount === num
                         ? 'bg-white text-indigo-700 shadow-3xs'
-                        : 'text-slate-500 hover:text-slate-700'
+                        : 'text-slate-700 hover:text-slate-700'
                     }`}
                   >
                     {num}
@@ -376,7 +425,7 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
 
             {/* MCQ Option Count selector */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 6. Options per MCQ
               </label>
               <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl justify-between">
@@ -388,7 +437,7 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
                     className={`w-full py-1.5 text-xs font-bold rounded-lg transition-all ${
                       optionsCount === num
                         ? 'bg-white text-indigo-700 shadow-3xs'
-                        : 'text-slate-500 hover:text-slate-705'
+                        : 'text-slate-700 hover:text-slate-705'
                     }`}
                   >
                     {num}
@@ -417,7 +466,7 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
                   localStorage.setItem('exammaster_own_gemini_key', e.target.value);
                 }}
                 placeholder="Optional Gemini API key"
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs outline-hidden focus:border-indigo-500"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs outline-hidden focus:border-indigo-500 placeholder:text-slate-700"
               />
             </div>
             <button
@@ -440,7 +489,7 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
               <Target className="h-4 w-4 text-indigo-600" />
               AI Syllabus Explorer
             </h3>
-            <p className="text-slate-500 text-xs mb-4">
+            <p className="text-slate-700 text-xs mb-4">
               Don't have a PDF? Pick a topic from a major exam syllabus below. The AI will generate a test purely from its own knowledge!
             </p>
             
@@ -463,7 +512,7 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
                           {examData.exam}
                         </span>
                       </div>
-                      <div className="text-slate-400">
+                      <div className="text-slate-700">
                         {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </div>
                     </button>
@@ -475,10 +524,10 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
                             key={cIdx}
                             type="button"
                             onClick={() => handleTopicSelect(examData.exam, chapter)}
-                            className="w-full text-left px-3 py-2 rounded-lg text-[11px] font-medium text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition-all flex items-center justify-between group"
+                            className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium text-slate-800 hover:text-indigo-700 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition-all flex items-start gap-2 group"
                           >
-                            <span className="truncate pr-2">{chapter}</span>
-                            <Sparkles className="h-3 w-3 opacity-0 group-hover:opacity-100 text-indigo-500 shrink-0 transition-opacity" />
+                            <span className="flex-1 leading-snug">{chapter}</span>
+                            <Sparkles className="h-3 w-3 mt-0.5 opacity-0 group-hover:opacity-100 text-indigo-500 shrink-0 transition-opacity" />
                           </button>
                         ))}
                       </div>

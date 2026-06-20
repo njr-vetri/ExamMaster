@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Layers, MessageSquareCode, GraduationCap, Menu, X, LogOut, ShieldCheck } from 'lucide-react';
+import { Sparkles, Layers, MessageSquareCode, GraduationCap, Menu, X, LogOut, ShieldCheck, BarChart3 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { Question, MockTest, ExamLanguage, ExamDifficulty } from './types';
 import type { UsageStats } from './types';
@@ -7,7 +7,6 @@ import { approveQuestion, generateQuestions, saveQuestions, fetchQuestions, save
 import { auth } from './services/firebase';
 import { useAuthUser } from './hooks/useAuthUser';
 
-// Import our beautiful subviews
 import DashboardView from './components/DashboardView';
 import UploadMaterialView from './components/UploadMaterialView';
 import AdminReviewView from './components/AdminReviewView';
@@ -15,6 +14,7 @@ import MockTestView from './components/MockTestView';
 import ResultsView from './components/ResultsView';
 import AiAssistantPanel from './components/AiAssistantPanel';
 import QuestionBankView from './components/QuestionBankView';
+import ProgressView from './components/ProgressView';
 import LoginView from './components/LoginView';
 
 export default function App() {
@@ -140,9 +140,9 @@ export default function App() {
     // B. Build dynamic MockTest template
     const newTest: MockTest = {
       id: `test-${Date.now()}`,
-      title: `${reviewSubject} AI Practice Exam`,
+      title: reviewSubject,
       subject: reviewSubject,
-      createdAt: new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
       language: reviewLanguage,
       difficulty: reviewDifficulty,
       questions: approvedQuestions,
@@ -157,6 +157,46 @@ export default function App() {
     setActiveTest(newTest);
     setCurrentView('test');
     setPendingReviewQuestions([]);
+  };
+
+  const handleSaveToBank = (approvedQuestions: Question[]) => {
+    if (approvedQuestions.length === 0) return;
+
+    // A. Add approved questions to DB
+    if (reviewSource === 'pending') {
+      Promise.all(approvedQuestions.map(q => approveQuestion(q.id, true))).catch(console.error);
+    } else {
+      saveQuestions(approvedQuestions).catch(console.error);
+    }
+
+    // B. Add to local pool (no duplicates)
+    const newPool = [...questions];
+    approvedQuestions.forEach(aq => {
+      if (!newPool.some(q => q.id === aq.id)) {
+        newPool.push({ ...aq, approved: true });
+      }
+    });
+    savePoolState(newPool);
+
+    // C. Build mock test block
+    const newTest: MockTest = {
+      id: `test-${Date.now()}`,
+      title: reviewSubject,
+      subject: reviewSubject,
+      createdAt: new Date().toISOString(),
+      language: reviewLanguage,
+      difficulty: reviewDifficulty,
+      questions: approvedQuestions,
+      totalTime: approvedQuestions.length * 60,
+      isCompleted: false
+    };
+
+    const newTestsList = [newTest, ...tests];
+    saveTestsState(newTestsList);
+    
+    // Go to Question Bank (qbank) to see the new block!
+    setPendingReviewQuestions([]);
+    setCurrentView('qbank');
   };
 
   // 3. User finishes and submits current mock answers for grading
@@ -192,11 +232,14 @@ export default function App() {
 
   // 4. Assemble questions selected from Question Bank page and initiate immediate test
   const handleAssembleCustomTest = (selectedQuestions: Question[]) => {
+    const uniqueSubjects = Array.from(new Set(selectedQuestions.map(q => q.subject))).filter(Boolean);
+    const subjectsTitle = uniqueSubjects.join(', ') || 'Custom Practice';
+
     const customTest: MockTest = {
       id: `test-custom-${Date.now()}`,
-      title: 'Custom Compiled Practice revision',
-      subject: selectedQuestions[0]?.subject || 'Custom Repository',
-      createdAt: new Date().toISOString().split('T')[0],
+      title: subjectsTitle,
+      subject: subjectsTitle,
+      createdAt: new Date().toISOString(),
       language: 'bilingual',
       difficulty: 'medium',
       questions: selectedQuestions,
@@ -302,7 +345,7 @@ export default function App() {
                 id="nav-link-upload"
               >
                 <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
-                Upload & Generate
+                Upload &amp; Generate
               </button>
               <button
                 onClick={() => setCurrentView('qbank')}
@@ -313,6 +356,16 @@ export default function App() {
               >
                 <Layers className="h-3.5 w-3.5 text-indigo-600" />
                 Question Bank
+              </button>
+              <button
+                onClick={() => setCurrentView('progress')}
+                className={`px-4 py-2 rounded-xl transition-all inline-flex items-center gap-1.5 text-xs font-semibold ${
+                  currentView === 'progress' ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100' : 'text-slate-650 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+                id="nav-link-progress"
+              >
+                <BarChart3 className="h-3.5 w-3.5 text-indigo-600" />
+                Progress &amp; Insights
               </button>
               <button
                 onClick={openPendingReview}
@@ -383,7 +436,7 @@ export default function App() {
                   currentView === 'upload' ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100' : 'text-slate-500 hover:bg-slate-50'
                 }`}
               >
-                Upload & Generate Mock Test
+                Upload &amp; Generate Mock Test
               </button>
               <button
                 onClick={() => {
@@ -395,6 +448,17 @@ export default function App() {
                 }`}
               >
                 Question Bank
+              </button>
+              <button
+                onClick={() => {
+                  setCurrentView('progress');
+                  setMobileMenuOpen(false);
+                }}
+                className={`px-4 py-2.5 text-left text-xs font-bold rounded-xl ${
+                  currentView === 'progress' ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100' : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                Progress &amp; Insights
               </button>
               <button
                 onClick={() => {
@@ -442,6 +506,7 @@ export default function App() {
                   language={reviewLanguage}
                   difficulty={reviewDifficulty}
                   onPublishTest={handlePublishTest}
+                  onSaveToBank={handleSaveToBank}
                   defaultApproved={reviewSource === 'draft'}
                   onCancel={() => {
                     setPendingReviewQuestions([]);
@@ -474,9 +539,38 @@ export default function App() {
               return (
                 <QuestionBankView
                   questions={questions}
+                  tests={tests}
                   onAssembleTest={handleAssembleCustomTest}
                 />
               );
+            case 'progress': {
+              // Compute streak inline for ProgressView
+              let streakCount = 0;
+              if (usageStats?.daily?.length) {
+                const msPerDay = 1000 * 60 * 60 * 24;
+                const dates = usageStats.daily.map(d => Math.floor(new Date(d.date).getTime() / msPerDay));
+                dates.sort((a, b) => b - a);
+                const uniqueDates = [...new Set(dates)];
+                const today = Math.floor(Date.now() / msPerDay);
+                let expectedDate = today;
+                if (uniqueDates.includes(today)) { streakCount = 1; expectedDate = today - 1; }
+                else if (uniqueDates.includes(today - 1)) { streakCount = 1; expectedDate = today - 2; }
+                if (streakCount > 0) {
+                  for (let d of uniqueDates) {
+                    if (d === expectedDate) { streakCount++; expectedDate--; }
+                    else if (d < expectedDate) break;
+                  }
+                }
+              }
+              return (
+                <ProgressView
+                  tests={tests}
+                  usageStats={usageStats}
+                  streakCount={streakCount}
+                  onNavigate={setCurrentView}
+                />
+              );
+            }
             default:
               return <div className="text-center p-8">View not found</div>;
           }

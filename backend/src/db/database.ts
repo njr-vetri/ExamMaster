@@ -36,6 +36,7 @@ export class SyncDb {
     this.exec(`
       CREATE TABLE IF NOT EXISTS questions (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         subject TEXT NOT NULL,
         text TEXT NOT NULL,
         text_tamil TEXT,
@@ -52,6 +53,7 @@ export class SyncDb {
 
       CREATE TABLE IF NOT EXISTS mock_tests (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         title TEXT NOT NULL,
         subject TEXT NOT NULL,
         created_at TEXT NOT NULL,
@@ -91,6 +93,30 @@ export class SyncDb {
         created_at TEXT DEFAULT (datetime('now'))
       );
     `);
+
+    // Clean up old title naming conventions for existing tests
+    this.exec(`
+      UPDATE mock_tests 
+      SET title = subject 
+      WHERE title = 'Custom Compiled Practice revision';
+
+      UPDATE mock_tests 
+      SET title = replace(title, ' AI Practice Exam', '')
+      WHERE title LIKE '% AI Practice Exam';
+    `);
+
+    // Schema migrations for existing databases
+    try {
+      this.exec(`ALTER TABLE questions ADD COLUMN user_id TEXT;`);
+    } catch (err) { /* column likely exists */ }
+    
+    try {
+      this.exec(`ALTER TABLE mock_tests ADD COLUMN user_id TEXT;`);
+    } catch (err) { /* column likely exists */ }
+    
+    try {
+      this.exec(`ALTER TABLE chat_history ADD COLUMN user_id TEXT;`);
+    } catch (err) { /* column likely exists */ }
 
     console.log('✅ SQLite (sql.js) database initialized');
   }
