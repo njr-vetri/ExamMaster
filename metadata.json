@@ -1,0 +1,6 @@
+{
+  "name": "AI Mock Exam Generator",
+  "description": "A modern AI-powered mock exam generator supporting English, Tamil, and Bilingual study materials with interactive tests, explanations, and an AI tutor chat.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
