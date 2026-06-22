@@ -164,11 +164,24 @@ app.post('/api/questions', async (req: AuthedRequest, res) => {
       const isDuplicate = await checkSimilarity(q.text, db);
       if (!isDuplicate) {
         await db.prepare(`
-          INSERT OR REPLACE INTO questions
+          INSERT INTO questions
             (id, user_id, subject, text, text_tamil, options, options_tamil,
              correct_option_index, explanation, explanation_tamil,
              language, difficulty, approved)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            user_id = EXCLUDED.user_id,
+            subject = EXCLUDED.subject,
+            text = EXCLUDED.text,
+            text_tamil = EXCLUDED.text_tamil,
+            options = EXCLUDED.options,
+            options_tamil = EXCLUDED.options_tamil,
+            correct_option_index = EXCLUDED.correct_option_index,
+            explanation = EXCLUDED.explanation,
+            explanation_tamil = EXCLUDED.explanation_tamil,
+            language = EXCLUDED.language,
+            difficulty = EXCLUDED.difficulty,
+            approved = EXCLUDED.approved
         `).run(
           q.id,
           req.user!.uid,
@@ -259,10 +272,24 @@ app.post('/api/tests', async (req: AuthedRequest, res) => {
   try {
     const t = req.body;
     await db.prepare(`
-      INSERT OR REPLACE INTO mock_tests
+      INSERT INTO mock_tests
         (id, user_id, title, subject, created_at, language, difficulty, questions,
          score, correct_count, time_spent, total_time, selected_answers, is_completed)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        user_id = EXCLUDED.user_id,
+        title = EXCLUDED.title,
+        subject = EXCLUDED.subject,
+        created_at = EXCLUDED.created_at,
+        language = EXCLUDED.language,
+        difficulty = EXCLUDED.difficulty,
+        questions = EXCLUDED.questions,
+        score = EXCLUDED.score,
+        correct_count = EXCLUDED.correct_count,
+        time_spent = EXCLUDED.time_spent,
+        total_time = EXCLUDED.total_time,
+        selected_answers = EXCLUDED.selected_answers,
+        is_completed = EXCLUDED.is_completed
     `).run(
       t.id, req.user!.uid, t.title, t.subject, t.createdAt, t.language, t.difficulty,
       JSON.stringify(t.questions),
