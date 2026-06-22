@@ -603,9 +603,14 @@ app.get('/api/quiz/:id/leaderboard', requireAuth, async (req: AuthedRequest, res
   try {
     const { id } = req.params;
 
+    // Use Postgres EXTRACT(EPOCH) when DATABASE_URL is set, else SQLite julianday()
+    const durationExpr = process.env.DATABASE_URL
+      ? `EXTRACT(EPOCH FROM (submitted_at::timestamp - started_at::timestamp))`
+      : `(julianday(submitted_at) - julianday(started_at)) * 86400`;
+
     const attempts = await db.prepare(`
       SELECT user_id, display_name, score, total_questions, 
-             (julianday(submitted_at) - julianday(started_at)) * 86400 as duration_seconds 
+             ${durationExpr} as duration_seconds 
       FROM quiz_attempts 
       WHERE quiz_id = ? AND submitted_at IS NOT NULL
       ORDER BY score DESC, duration_seconds ASC
