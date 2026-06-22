@@ -1,4 +1,4 @@
-import type { SyncDb } from '../db/database.js';
+import type { DbClient } from '../db/database.js';
 
 /**
  * Simple Jaccard similarity to detect near-duplicate questions.
