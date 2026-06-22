@@ -6,7 +6,7 @@ import type { SyncDb } from '../db/database.js';
  * Threshold: 70% word overlap = duplicate.
  */
 export async function checkSimilarity(newText: string, db: any): Promise<boolean> {
-  const existing = db.prepare('SELECT text FROM questions').all() as { text: string }[];
+  const existing = await db.prepare('SELECT text FROM questions').all() as { text: string }[];
   if (existing.length === 0) return false;
 
   const newWords = tokenize(newText);

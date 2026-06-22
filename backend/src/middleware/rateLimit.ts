@@ -8,12 +8,12 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function limitAiGenerations(req: AuthedRequest, res: Response, next: NextFunction) {
+export async function limitAiGenerations(req: AuthedRequest, res: Response, next: NextFunction) {
   const uid = req.user?.uid;
   if (!uid) return res.status(401).json({ error: 'Authentication required' });
 
   const usageDate = todayKey();
-  const row = db
+  const row = await db
     .prepare('SELECT count FROM ai_generation_usage WHERE user_id = ? AND usage_date = ?')
     .get(uid, usageDate) as { count?: number } | undefined;
 
@@ -22,10 +22,10 @@ export function limitAiGenerations(req: AuthedRequest, res: Response, next: Next
     return res.status(429).json({ error: `Daily AI generation limit reached (${DAILY_GENERATION_LIMIT}/day)` });
   }
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO ai_generation_usage (user_id, usage_date, count)
     VALUES (?, ?, 1)
-    ON CONFLICT(user_id, usage_date) DO UPDATE SET count = count + 1
+    ON CONFLICT(user_id, usage_date) DO UPDATE SET count = ai_generation_usage.count + 1
   `).run(uid, usageDate);
 
   res.setHeader('X-RateLimit-Limit', String(DAILY_GENERATION_LIMIT));
