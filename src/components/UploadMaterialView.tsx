@@ -22,12 +22,78 @@ const EXAM_SYLLABI = [
     color: 'text-blue-600',
     bg: 'bg-blue-50',
     chapters: [
-      'General Tamil: Grammar & Literature (இலக்கணம், இலக்கியம்)', 
-      'General Science: Physics & Chemistry basics', 
-      'Indian Polity: Constitution, Parliament, Panchayat Raj', 
-      'Geography: Monsoon, Rainfall, Crops, Transport', 
-      'Indian Economy: Five Year Plans, RBI, GST', 
-      'History: Indus Valley, Guptas, Mughals, Marathas'
+      { 
+        topic: 'General Tamil (Ilakkanam)', 
+        subtopics: [
+          { name: '1. எழுத்தியல் (Ezhuthiyal)', items: ['உயிர் எழுத்துகள்', 'மெய் எழுத்துகள்', 'உயிர்மெய் எழுத்துகள்', 'ஆய்த எழுத்து', 'குறில், நெடில்', 'வல்லினம், மெல்லினம், இடையினம்'] },
+          { name: '2. சொல்லியல் (Solliyal)', items: ['பெயர்ச்சொல்', 'வினைச்சொல்', 'இடைச்சொல்', 'உரிச்சொல்', 'ஒருமை – பன்மை', 'திணை, பால், எண், இடம்'] },
+          { name: '3. புணர்ச்சி (Punarchi)', items: ['இயல்பு புணர்ச்சி', 'விகார புணர்ச்சி', 'தோன்றல்', 'திரிதல்', 'கெடுதல்'] },
+          { name: '4. வேற்றுமை உருபுகள்', items: ['8 வேற்றுமைகள்', 'வேற்றுமைத் தொகை', 'வேற்றுமை விரி'] },
+          { name: '5. வினை மற்றும் காலங்கள்', items: ['இறந்தகாலம்', 'நிகழ்காலம்', 'எதிர்காலம்', 'வினைமுற்று', 'எச்சவினை'] },
+          { name: '6. இலக்கணக் குறிப்புகள்', items: ['எதிர்ச்சொல்', 'இணைச்சொல்', 'பொருத்துக', 'சரியான சொல் தேர்வு', 'பிழைதிருத்தம்'] },
+          { name: '7. மரபுப் பிழைகள்', items: ['வழுவமைதி', 'வழாநிலை', 'மரபுத்தொடர்கள்'] },
+          { name: '8. அணி இலக்கணம்', items: ['உவமையணி', 'உருவக அணி', 'பிற அணிகள்'] },
+          { name: '9. யாப்பு இலக்கணம்', items: ['அசை', 'சீர்', 'தளை', 'அடி', 'தொடை', 'வெண்பா', 'ஆசிரியப்பா'] },
+          { name: '10. மொழித்திறன்', items: ['வாக்கியப் பிழை திருத்தம்', 'சரியான வாக்கிய அமைப்பு', 'பொருத்தமான சொல் தேர்வு'] },
+          { name: '11. சொற்களஞ்சியம்', items: ['ஒருபொருட் பலசொல்', 'பலபொருள் ஒரு சொல்', 'எதிர்ச்சொல்', 'இணைச்சொல்'] }
+        ]
+      },
+      { 
+        topic: 'General Science', 
+        subtopics: [
+          { name: 'Physics', items: ['Nature of Universe', 'Mechanics', 'Properties of Matter', 'Light, Sound, Heat'] },
+          { name: 'Chemistry', items: ['Elements', 'Compounds', 'Acids, Bases, Salts', 'Petroleum Products'] },
+          { name: 'Biology', items: ['Life Science', 'Classification', 'Evolution', 'Human Diseases'] }
+        ]
+      },
+      { 
+        topic: 'Indian Polity', 
+        subtopics: [
+          { name: 'Constitution', items: ['Preamble', 'Fundamental Rights', 'Directive Principles'] },
+          { name: 'Government', items: ['Parliament', 'President', 'Judiciary'] },
+          { name: 'Local Govt', items: ['Panchayat Raj', 'Municipalities'] }
+        ]
+      },
+      {
+        topic: 'History & Culture of India',
+        subtopics: [
+          { name: 'Ancient India', items: ['Indus Valley Civilization', 'Guptas', 'Delhi Sultans'] },
+          { name: 'Medieval India', items: ['Mughals', 'Marathas', 'Vijayanagar & Bahmani Kingdoms'] },
+          { name: 'South Indian History', items: ['Culture and Heritage of Tamil people', 'Advent of Europeans'] }
+        ]
+      },
+      {
+        topic: 'Indian National Movement',
+        subtopics: [
+          { name: 'Early Uprisings', items: ['National Renaissance', 'Early uprising against British rule'] },
+          { name: 'Freedom Struggle', items: ['Indian National Congress', 'Role of Gandhi, Nehru, Bose'] },
+          { name: 'Tamil Nadu Role', items: ['Role of Tamil Nadu in freedom struggle', 'Bharathiar, V.O.C, Rajaji'] }
+        ]
+      },
+      {
+        topic: 'Geography of India',
+        subtopics: [
+          { name: 'Physical Features', items: ['Location', 'Monsoon, Rainfall, Weather', 'Water Resources'] },
+          { name: 'Economic Geography', items: ['Agriculture Pattern', 'Transport', 'Communication'] },
+          { name: 'Social Geography', items: ['Population Density', 'Disaster Management', 'Environment'] }
+        ]
+      },
+      {
+        topic: 'Economy of India',
+        subtopics: [
+          { name: 'Indian Economy', items: ['Nature of Indian Economy', 'Five-year plan models'] },
+          { name: 'Finance & Taxes', items: ['Reserve Bank of India', 'Finance Commission', 'GST'] },
+          { name: 'Economic Trends', items: ['Employment Generation', 'Land Reforms', 'Agriculture'] }
+        ]
+      },
+      {
+        topic: 'Aptitude & Mental Ability',
+        subtopics: [
+          { name: 'Mathematics', items: ['Simplification', 'Percentage', 'HCF & LCM'] },
+          { name: 'Proportions & Interest', items: ['Ratio and Proportion', 'Simple & Compound Interest'] },
+          { name: 'Logical Reasoning', items: ['Puzzles', 'Dice', 'Visual Reasoning', 'Number Series'] }
+        ]
+      }
     ]
   },
   {
@@ -35,35 +101,108 @@ const EXAM_SYLLABI = [
     color: 'text-amber-600',
     bg: 'bg-amber-50',
     chapters: [
-      'Indian Polity: Fundamental Rights, Judiciary, Executive', 
-      'Modern History: Indian National Movement (1857-1947)', 
-      'Geography: Indian & World physical geography', 
-      'Economy: Inflation, Banking, GDP, Poverty', 
-      'Environment: Climate Change, Biodiversity, Treaties'
+      { 
+        topic: 'Indian Polity & Governance', 
+        subtopics: [
+          { name: 'Constitution', items: ['Fundamental Rights', 'Judiciary', 'Executive', 'Legislature'] },
+          { name: 'Governance', items: ['Panchayati Raj', 'Public Policy', 'Rights Issues'] }
+        ]
+      },
+      { 
+        topic: 'History of India', 
+        subtopics: [
+          { name: 'Modern India', items: ['Indian National Movement', 'British Rule'] },
+          { name: 'Ancient India', items: ['Indus Valley', 'Buddhism', 'Jainism'] },
+          { name: 'Medieval India', items: ['Delhi Sultanate', 'Mughal Empire', 'Bhakti Movement'] }
+        ]
+      },
+      {
+        topic: 'Geography',
+        subtopics: [
+          { name: 'Physical Geography', items: ['Geomorphology', 'Climatology', 'Oceanography'] },
+          { name: 'Indian Geography', items: ['Drainage System', 'Agriculture', 'Monsoon'] },
+          { name: 'Economic Geography', items: ['Resources', 'Industries', 'Transport'] }
+        ]
+      },
+      {
+        topic: 'Economic & Social Development',
+        subtopics: [
+          { name: 'Macroeconomics', items: ['Inflation', 'Banking', 'Fiscal Policy', 'Monetary Policy'] },
+          { name: 'Social Sectors', items: ['Poverty', 'Demographics', 'Social Sector Initiatives'] }
+        ]
+      },
+      {
+        topic: 'Environment & Ecology',
+        subtopics: [
+          { name: 'Biodiversity', items: ['Conservation', 'National Parks', 'Biosphere Reserves'] },
+          { name: 'Climate Change', items: ['Global Warming', 'International Treaties', 'Pollution'] }
+        ]
+      }
     ]
   },
   {
-    exam: 'NEET UG (Biology)',
+    exam: 'NEET UG',
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
     chapters: [
-      'Cell Biology: Structure, Cycle, Mitosis, Meiosis', 
-      'Human Physiology: Digestion, Respiration, Circulation', 
-      'Genetics: Mendelian Inheritance, DNA Structure, Mutation', 
-      'Ecology: Ecosystems, Biodiversity, Conservation',
-      'Biotechnology: Recombinant DNA, CRISPR, Applications'
+      { 
+        topic: 'Biology', 
+        subtopics: [
+          { name: 'Cell & Plant Biology', items: ['Cell Structure', 'Cell Cycle', 'Photosynthesis', 'Plant Growth'] },
+          { name: 'Genetics & Ecology', items: ['Mendelian Inheritance', 'Molecular Basis', 'Ecosystems', 'Biodiversity'] },
+          { name: 'Human Physiology', items: ['Digestion', 'Circulation', 'Excretory System', 'Neural Control'] },
+          { name: 'Reproduction & Biotech', items: ['Human Reproduction', 'Evolution', 'Biotechnology Principles'] }
+        ]
+      },
+      {
+        topic: 'Physics',
+        subtopics: [
+          { name: 'Mechanics', items: ['Kinematics', 'Laws of Motion', 'Work, Energy, Power', 'Gravitation'] },
+          { name: 'Electrodynamics', items: ['Electrostatics', 'Current Electricity', 'Magnetic Effects'] },
+          { name: 'Modern Physics', items: ['Dual Nature of Matter', 'Atoms and Nuclei', 'Semiconductors'] }
+        ]
+      },
+      {
+        topic: 'Chemistry',
+        subtopics: [
+          { name: 'Physical Chemistry', items: ['Atomic Structure', 'Thermodynamics', 'Chemical Kinetics', 'Equilibrium'] },
+          { name: 'Inorganic Chemistry', items: ['Chemical Bonding', 'p-Block Elements', 'Coordination Compounds'] },
+          { name: 'Organic Chemistry', items: ['Hydrocarbons', 'Haloalkanes', 'Biomolecules'] }
+        ]
+      }
     ]
   },
   {
-    exam: 'JEE Main (Physics)',
+    exam: 'JEE Main',
     color: 'text-purple-600',
     bg: 'bg-purple-50',
     chapters: [
-      'Kinematics: 1D & 2D Motion, Projectiles, Vectors', 
-      'Laws of Motion: Newton\'s Laws, Friction, Circular Motion', 
-      'Thermodynamics: Laws of Thermo, Heat Engines, Calorimetry', 
-      'Electromagnetism: Gauss Law, Capacitance, AC Circuits', 
-      'Optics: Ray Optics, Wave Optics, Interference'
+      { 
+        topic: 'Physics', 
+        subtopics: [
+          { name: 'Mechanics', items: ['1D/2D Motion', 'Laws of Motion', 'Rotational Dynamics'] },
+          { name: 'Electromagnetism', items: ['Electrostatics', 'AC Circuits', 'Electromagnetic Induction'] },
+          { name: 'Thermodynamics', items: ['Kinetic Theory of Gases', 'Laws of Thermodynamics'] },
+          { name: 'Optics & Modern Physics', items: ['Ray Optics', 'Wave Optics', 'Dual Nature', 'Semiconductors'] }
+        ]
+      },
+      {
+        topic: 'Mathematics',
+        subtopics: [
+          { name: 'Algebra', items: ['Complex Numbers', 'Quadratic Equations', 'Matrices', 'Determinants'] },
+          { name: 'Calculus', items: ['Limits', 'Continuity', 'Integration', 'Differential Equations'] },
+          { name: 'Coordinate Geometry', items: ['Straight Lines', 'Circles', 'Conic Sections'] },
+          { name: 'Trigonometry & Vectors', items: ['Trigonometric Functions', 'Vectors', '3D Geometry'] }
+        ]
+      },
+      {
+        topic: 'Chemistry',
+        subtopics: [
+          { name: 'Physical', items: ['Mole Concept', 'Atomic Structure', 'Electrochemistry', 'Chemical Kinetics'] },
+          { name: 'Inorganic', items: ['Periodic Table', 'Chemical Bonding', 'd and f Block Elements'] },
+          { name: 'Organic', items: ['GOC', 'Hydrocarbons', 'Polymers', 'Chemistry in Everyday Life'] }
+        ]
+      }
     ]
   }
 ];
@@ -82,6 +221,7 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
   const [reuseApproved, setReuseApproved] = useState(true);
   const [ownApiKey, setOwnApiKey] = useState(() => localStorage.getItem('exammaster_own_gemini_key') || '');
   const [expandedExam, setExpandedExam] = useState<string | null>(null);
+  const [expandedChapter, setExpandedChapter] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -348,6 +488,7 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
                   id="subject-input"
                   type="text"
                   required
+                  autoComplete="off"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="e.g. Physics, Chemistry, Indian History..."
@@ -518,18 +659,43 @@ export default function UploadMaterialView({ onGenerate }: UploadMaterialViewPro
                     </button>
                     
                     {isExpanded && (
-                      <div className="p-3 pt-0 border-t border-slate-100 bg-slate-50/50 space-y-1.5 animate-fadeIn">
-                        {examData.chapters.map((chapter, cIdx) => (
-                          <button
-                            key={cIdx}
-                            type="button"
-                            onClick={() => handleTopicSelect(examData.exam, chapter)}
-                            className="w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium text-slate-800 hover:text-indigo-700 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition-all flex items-start gap-2 group"
-                          >
-                            <span className="flex-1 leading-snug">{chapter}</span>
-                            <Sparkles className="h-3 w-3 mt-0.5 opacity-0 group-hover:opacity-100 text-indigo-500 shrink-0 transition-opacity" />
-                          </button>
-                        ))}
+                      <div className="p-2 border-t border-slate-100 bg-slate-50/50 space-y-1 animate-fadeIn">
+                        {examData.chapters.map((chapter, cIdx) => {
+                          const isChapterExpanded = expandedChapter === `${examData.exam}-${chapter.topic}`;
+                          return (
+                            <div key={cIdx} className="rounded-lg overflow-hidden border border-transparent hover:border-indigo-100 transition-all bg-white shadow-3xs">
+                              <button
+                                type="button"
+                                onClick={() => setExpandedChapter(isChapterExpanded ? null : `${examData.exam}-${chapter.topic}`)}
+                                className="w-full text-left px-3 py-2.5 text-xs font-bold text-slate-800 hover:text-indigo-700 hover:bg-indigo-50 flex items-center justify-between transition-colors"
+                              >
+                                {chapter.topic}
+                                {isChapterExpanded ? <ChevronDown className="h-3 w-3 text-slate-400" /> : <ChevronRight className="h-3 w-3 text-slate-400" />}
+                              </button>
+                              
+                              {isChapterExpanded && (
+                                <div className="px-3 pb-2 pt-0 space-y-1.5 animate-fadeIn">
+                                  {chapter.subtopics.map((sub, sIdx) => (
+                                    <button
+                                      key={sIdx}
+                                      type="button"
+                                      onClick={() => handleTopicSelect(examData.exam, `${chapter.topic} - ${sub.name}: ${sub.items.join(', ')}`)}
+                                      className="w-full text-left px-3 py-2 rounded-md bg-slate-50 border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all group flex flex-col gap-0.5"
+                                    >
+                                      <div className="flex w-full items-start justify-between">
+                                        <span className="font-bold text-xs text-slate-700 group-hover:text-indigo-700">{sub.name}</span>
+                                        <Sparkles className="h-3 w-3 mt-0.5 opacity-0 group-hover:opacity-100 text-indigo-500 shrink-0 transition-opacity" />
+                                      </div>
+                                      <span className="text-[10px] text-slate-500 leading-tight">
+                                        {sub.items.join(', ')}
+                                      </span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

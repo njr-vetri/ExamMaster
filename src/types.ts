@@ -53,3 +53,59 @@ export interface ChatMessage {
   timestamp: string;
   relatedQuestionId?: string;
 }
+
+export interface Quiz {
+  id: string;
+  quizCode?: string;
+  title: string;
+  createdBy?: string;
+  status: 'draft' | 'published' | 'unpublished';
+  timeLimitMinutes: number;
+  createdAt?: string;
+  publishedAt?: string;
+}
+
+export interface QuizAttempt {
+  id: string;
+  quizId: string;
+  userId: string;
+  score?: number;
+  totalQuestions: number;
+  startedAt: string;
+  submittedAt?: string;
+}
+
+export interface LeaderboardEntry {
+  userId: string;
+  displayName: string;
+  score: number;
+  totalQuestions: number;
+  durationSeconds: number;
+}
+
+export interface GlobalLeaderboardEntry {
+  userId: string;
+  displayName: string;
+  totalPoints: number;
+  quizzesTaken: number;
+}
+
+export interface QuizHistoryEntry {
+  id: string;
+  attemptId: string;
+  title: string;
+  quizCode: string;
+  subject: string;
+  score: number;
+  totalQuestions: number;
+  completedAt: string;
+}
+
+export interface QuizReviewData {
+  attemptId: string;
+  quizTitle: string;
+  score: number;
+  totalQuestions: number;
+  questions: Question[];
+  selectedAnswers: Record<string, number>;
+}

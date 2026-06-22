@@ -34,7 +34,10 @@ async function authHeaders(includeJson = true): Promise<Record<string, string>> 
 async function apiGet<T>(path: string, params?: Record<string, string>): Promise<T> {
   const url = new URL(BASE_URL + path);
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), { headers: await authHeaders(false) });
+  const res = await fetch(url.toString(), { 
+    headers: await authHeaders(false),
+    cache: 'no-store'
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || res.statusText);
@@ -163,4 +166,46 @@ export async function sendChatMessage(params: {
     history: params.history || []
   });
   return data.reply;
+}
+
+// ─── Shared Quizzes ───────────────────────────────────────────────────────────
+import type { Quiz, LeaderboardEntry, GlobalLeaderboardEntry, QuizHistoryEntry, QuizReviewData } from '../types';
+
+export async function createQuiz(title: string, questionIds: string[], timeLimitMinutes: number): Promise<{ id: string, status: string }> {
+  return apiPost('/api/quiz/create', { title, questionIds, timeLimitMinutes });
+}
+
+export async function publishQuiz(id: string): Promise<{ id: string, status: string, quizCode: string }> {
+  return apiPost(`/api/quiz/${id}/publish`, {});
+}
+
+export async function unpublishQuiz(id: string): Promise<{ id: string, status: string }> {
+  return apiPost(`/api/quiz/${id}/unpublish`, {});
+}
+
+export async function joinQuiz(quizCode: string, displayName: string): Promise<{ attemptId: string, quiz: Quiz, questions: Question[] }> {
+  return apiPost('/api/quiz/join', { quizCode, displayName });
+}
+
+export async function submitQuizAttempt(quizId: string, attemptId: string, selectedAnswers: Record<string, number>): Promise<{ score: number, total: number }> {
+  return apiPost(`/api/quiz/${quizId}/submit`, { attemptId, selectedAnswers });
+}
+
+export async function fetchQuizLeaderboard(quizId: string): Promise<LeaderboardEntry[]> {
+  const data = await apiGet<{ leaderboard: LeaderboardEntry[] }>(`/api/quiz/${quizId}/leaderboard`);
+  return data.leaderboard;
+}
+
+export async function fetchGlobalLeaderboard(): Promise<GlobalLeaderboardEntry[]> {
+  const data = await apiGet<{ leaderboard: GlobalLeaderboardEntry[] }>('/api/quiz/leaderboard/global');
+  return data.leaderboard;
+}
+
+export async function fetchQuizHistory(): Promise<QuizHistoryEntry[]> {
+  const data = await apiGet<{ history: QuizHistoryEntry[] }>('/api/quiz/history/me');
+  return data.history;
+}
+
+export async function fetchQuizReview(attemptId: string): Promise<QuizReviewData> {
+  return apiGet<QuizReviewData>(`/api/quiz/attempt/${attemptId}/review`);
 }

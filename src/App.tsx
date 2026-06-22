@@ -16,6 +16,11 @@ import AiAssistantPanel from './components/AiAssistantPanel';
 import QuestionBankView from './components/QuestionBankView';
 import ProgressView from './components/ProgressView';
 import LoginView from './components/LoginView';
+import JoinQuizView from './components/JoinQuizView';
+import SharedQuizView from './components/SharedQuizView';
+import QuizLeaderboardView from './components/QuizLeaderboardView';
+import QuizReviewView from './components/QuizReviewView';
+import { createQuiz, publishQuiz } from './services/api';
 
 export default function App() {
   const { user, loading: authLoading } = useAuthUser();
@@ -35,6 +40,13 @@ export default function App() {
 
   // Currently active active practice/results
   const [activeTest, setActiveTest] = useState<MockTest | null>(null);
+
+  // Shared Quiz state
+  const [activeSharedQuiz, setActiveSharedQuiz] = useState<any | null>(null);
+  const [activeSharedAttemptId, setActiveSharedAttemptId] = useState<string | null>(null);
+  const [activeSharedQuestions, setActiveSharedQuestions] = useState<Question[]>([]);
+  const [activeReviewAttemptId, setActiveReviewAttemptId] = useState<string | null>(null);
+  const [joinQuizRefreshKey, setJoinQuizRefreshKey] = useState(0);
 
   // AI Tutor Doubt Panel togglers
   const [doubtQuestion, setDoubtQuestion] = useState<Question | null>(null);
@@ -231,9 +243,10 @@ export default function App() {
   };
 
   // 4. Assemble questions selected from Question Bank page and initiate immediate test
-  const handleAssembleCustomTest = (selectedQuestions: Question[]) => {
+  const handleAssembleCustomTest = (selectedQuestions: Question[], timeLimitMinutes?: number) => {
     const uniqueSubjects = Array.from(new Set(selectedQuestions.map(q => q.subject))).filter(Boolean);
     const subjectsTitle = uniqueSubjects.join(', ') || 'Custom Practice';
+    const totalTime = timeLimitMinutes ? timeLimitMinutes * 60 : selectedQuestions.length * 60;
 
     const customTest: MockTest = {
       id: `test-custom-${Date.now()}`,
@@ -243,7 +256,7 @@ export default function App() {
       language: 'bilingual',
       difficulty: 'medium',
       questions: selectedQuestions,
-      totalTime: selectedQuestions.length * 60,
+      totalTime,
       isCompleted: false
     };
 
@@ -252,6 +265,32 @@ export default function App() {
 
     setActiveTest(customTest);
     setCurrentView('test');
+  };
+
+  const handleCreateSharedQuiz = async (selectedQuestions: Question[], timeLimitMinutes?: number) => {
+    try {
+      const subject = selectedQuestions[0]?.subject || 'Custom Quiz';
+      const minutes = timeLimitMinutes ?? Math.max(1, selectedQuestions.length);
+      const res1 = await createQuiz(`Shared Quiz: ${subject}`, selectedQuestions.map(q => q.id), minutes);
+      const res2 = await publishQuiz(res1.id);
+      
+      setToast({ type: 'info', message: `Quiz Published! Share Code: ${res2.quizCode}` });
+      setCurrentView('dashboard');
+    } catch (err: any) {
+      setToast({ type: 'error', message: err.message || 'Failed to publish quiz' });
+    }
+  };
+
+  const handleJoinSharedQuizSuccess = (attemptId: string, quiz: any, questions: Question[]) => {
+    setActiveSharedAttemptId(attemptId);
+    setActiveSharedQuiz(quiz);
+    setActiveSharedQuestions(questions);
+    setCurrentView('shared_test');
+  };
+
+  const handleSharedQuizComplete = (score: number, total: number) => {
+    setJoinQuizRefreshKey(k => k + 1);
+    setCurrentView('shared_leaderboard');
   };
 
   // 5. Retry some test we failed or want to master again
@@ -291,7 +330,7 @@ export default function App() {
     }
   };
 
-  const isTestTakingActive = currentView === 'test';
+  const isTestTakingActive = currentView === 'test' || currentView === 'shared_test';
 
   if (authLoading) {
     return <div className="min-h-screen bg-stone-50 grid place-items-center text-sm font-bold text-slate-600">Loading</div>;
@@ -368,14 +407,14 @@ export default function App() {
                 Progress &amp; Insights
               </button>
               <button
-                onClick={openPendingReview}
+                onClick={() => setCurrentView('join_quiz')}
                 className={`px-4 py-2 rounded-xl transition-all inline-flex items-center gap-1.5 text-xs font-semibold ${
-                  currentView === 'review' && reviewSource === 'pending' ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100' : 'text-slate-650 hover:bg-slate-50 hover:text-slate-900'
+                  currentView === 'join_quiz' ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100' : 'text-slate-650 hover:bg-slate-50 hover:text-slate-900'
                 }`}
-                id="nav-link-admin-review"
+                id="nav-link-join-quiz"
               >
                 <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
-                Admin Review
+                Join Quiz
               </button>
             </nav>
 
@@ -462,14 +501,14 @@ export default function App() {
               </button>
               <button
                 onClick={() => {
-                  openPendingReview();
+                  setCurrentView('join_quiz');
                   setMobileMenuOpen(false);
                 }}
                 className={`px-4 py-2.5 text-left text-xs font-bold rounded-xl ${
-                  currentView === 'review' && reviewSource === 'pending' ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100' : 'text-slate-500 hover:bg-slate-50'
+                  currentView === 'join_quiz' ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100' : 'text-slate-500 hover:bg-slate-50'
                 }`}
               >
-                Admin Review
+                Join Quiz
               </button>
             </div>
           )}
@@ -541,8 +580,49 @@ export default function App() {
                   questions={questions}
                   tests={tests}
                   onAssembleTest={handleAssembleCustomTest}
+                  onCreateSharedQuiz={handleCreateSharedQuiz}
                 />
               );
+            case 'join_quiz':
+              return (
+                <JoinQuizView 
+                  onJoinSuccess={handleJoinSharedQuizSuccess}
+                  onViewLeaderboard={(id, title) => {
+                    setActiveSharedQuiz({ id, title } as any);
+                    setCurrentView('shared_leaderboard');
+                  }}
+                  onReviewQuiz={(attemptId) => {
+                    setActiveReviewAttemptId(attemptId);
+                    setCurrentView('shared_review');
+                  }}
+                  refreshKey={joinQuizRefreshKey}
+                />
+              );
+            case 'shared_test':
+              return activeSharedQuiz ? (
+                <SharedQuizView
+                  quiz={activeSharedQuiz}
+                  attemptId={activeSharedAttemptId!}
+                  questions={activeSharedQuestions}
+                  onComplete={handleSharedQuizComplete}
+                  onExit={() => setCurrentView('dashboard')}
+                />
+              ) : null;
+            case 'shared_leaderboard':
+              return activeSharedQuiz ? (
+                <QuizLeaderboardView
+                  quizId={activeSharedQuiz.id}
+                  quizTitle={activeSharedQuiz.title}
+                  onExit={() => setCurrentView('join_quiz')}
+                />
+              ) : null;
+            case 'shared_review':
+              return activeReviewAttemptId ? (
+                <QuizReviewView
+                  attemptId={activeReviewAttemptId}
+                  onExit={() => setCurrentView('join_quiz')}
+                />
+              ) : null;
             case 'progress': {
               // Compute streak inline for ProgressView
               let streakCount = 0;
@@ -579,9 +659,11 @@ export default function App() {
       </main>
 
       {toast && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] w-[calc(100%-2rem)] max-w-md rounded-xl border border-red-200 bg-white px-4 py-3 shadow-xl flex items-start justify-between gap-3 animate-slideUp">
-          <p className="text-sm font-semibold text-red-700">{toast.message}</p>
-          <button onClick={() => setToast(null)} className="text-red-500 hover:text-red-700 font-bold">×</button>
+        <div className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] w-[calc(100%-2rem)] max-w-md rounded-xl border px-4 py-3 shadow-xl flex items-start justify-between gap-3 animate-slideUp ${
+          toast.type === 'error' ? 'border-red-200 bg-white text-red-700' : 'border-indigo-200 bg-indigo-50 text-indigo-800'
+        }`}>
+          <p className="text-sm font-semibold">{toast.message}</p>
+          <button onClick={() => setToast(null)} className="opacity-70 hover:opacity-100 font-bold">×</button>
         </div>
       )}
 

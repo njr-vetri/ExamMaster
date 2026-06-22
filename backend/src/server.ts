@@ -19,6 +19,7 @@ import { checkSimilarity } from './services/similarityService.js';
 import { requireAuth } from './middleware/auth.js';
 import type { AuthedRequest } from './middleware/auth.js';
 import { limitAiGenerations } from './middleware/rateLimit.js';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -345,6 +346,313 @@ app.get('/api/admin/usage', (req: AuthedRequest, res) => {
       }), { generations: 0, uploads: 0, estimatedTokens: 0 }),
       daily
     });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ──────────────────────────────────────────
+// QUIZ ROUTES
+// ──────────────────────────────────────────
+
+function generateQuizCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No 0, O, 1, I
+  let code = '';
+  for (let i = 0; i < 5; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `EXM-${code}`;
+}
+
+app.post('/api/quiz/create', requireAuth, (req: AuthedRequest, res) => {
+  try {
+    const { title, questionIds, timeLimitMinutes } = req.body;
+    const quizId = `quiz-${Date.now()}`;
+    
+    db.prepare(`
+      INSERT INTO quizzes (id, title, created_by, time_limit_minutes) 
+      VALUES (?, ?, ?, ?)
+    `).run(quizId, title, req.user!.uid, timeLimitMinutes);
+
+    questionIds.forEach((qid: string, idx: number) => {
+      db.prepare(`
+        INSERT INTO quiz_questions (quiz_id, question_id, question_order) 
+        VALUES (?, ?, ?)
+      `).run(quizId, qid, idx);
+    });
+
+    return res.json({ id: quizId, status: 'draft' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/quiz/:id/publish', requireAuth, (req: AuthedRequest, res) => {
+  try {
+    const { id } = req.params;
+    let quizCode = '';
+    let success = false;
+    
+    // retry logic for quiz code collision
+    for (let i = 0; i < 10; i++) {
+      quizCode = generateQuizCode();
+      try {
+        db.prepare(`
+          UPDATE quizzes 
+          SET status = 'published', quiz_code = ?, published_at = datetime('now') 
+          WHERE id = ? AND created_by = ?
+        `).run(quizCode, id, req.user!.uid);
+        success = true;
+        break;
+      } catch (err: any) {
+        if (!err.message.includes('UNIQUE')) throw err;
+      }
+    }
+
+    if (!success) {
+      return res.status(500).json({ error: 'Failed to generate unique quiz code' });
+    }
+
+    return res.json({ id, status: 'published', quizCode });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/quiz/:id/unpublish', requireAuth, (req: AuthedRequest, res) => {
+  try {
+    const { id } = req.params;
+    db.prepare(`
+      UPDATE quizzes SET status = 'unpublished' WHERE id = ? AND created_by = ?
+    `).run(id, req.user!.uid);
+    return res.json({ id, status: 'unpublished' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/quiz/join', requireAuth, (req: AuthedRequest, res) => {
+  try {
+    const { quizCode, displayName } = req.body;
+    
+    if (!displayName || typeof displayName !== 'string') {
+      return res.status(400).json({ error: 'Display name is required' });
+    }
+
+    const quiz = db.prepare(`SELECT * FROM quizzes WHERE quiz_code = ? AND status = 'published'`).get(quizCode);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found or not published' });
+
+    const existingAttempt = db.prepare(`SELECT * FROM quiz_attempts WHERE quiz_id = ? AND user_id = ?`).get(quiz.id, req.user!.uid);
+    if (existingAttempt) return res.status(403).json({ error: 'You have already attempted this quiz' });
+
+    const questionsRows = db.prepare(`
+      SELECT q.id, q.text, q.options, q.subject, q.language 
+      FROM quiz_questions qq 
+      JOIN questions q ON qq.question_id = q.id 
+      WHERE qq.quiz_id = ? 
+      ORDER BY qq.question_order ASC
+    `).all(quiz.id) as any[];
+
+    const questions = questionsRows.map(r => ({
+      id: r.id,
+      text: r.text,
+      options: JSON.parse(r.options),
+      subject: r.subject,
+      language: r.language
+    }));
+
+    // Start attempt
+    const attemptId = `att-${Date.now()}`;
+    db.prepare(`
+      INSERT INTO quiz_attempts (id, quiz_id, user_id, display_name, total_questions, started_at) 
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
+    `).run(attemptId, quiz.id, req.user!.uid, displayName, questions.length);
+
+    return res.json({ 
+      attemptId, 
+      quiz: {
+        id: quiz.id,
+        title: quiz.title,
+        timeLimitMinutes: quiz.time_limit_minutes,
+      },
+      questions 
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/quiz/:id/submit', requireAuth, (req: AuthedRequest, res) => {
+  try {
+    const { id } = req.params; // quiz_id
+    const { attemptId, selectedAnswers } = req.body;
+
+    const attempt = db.prepare(`SELECT * FROM quiz_attempts WHERE id = ? AND quiz_id = ? AND user_id = ?`).get(attemptId, id, req.user!.uid);
+    if (!attempt) return res.status(404).json({ error: 'Attempt not found' });
+    if (attempt.submitted_at) return res.status(400).json({ error: 'Already submitted' });
+
+    const quiz = db.prepare(`SELECT time_limit_minutes FROM quizzes WHERE id = ?`).get(id);
+    
+    // Convert sqlite UTC string to valid timestamp
+    const startedAtStr = attempt.started_at + (attempt.started_at.endsWith('Z') ? '' : 'Z');
+    const startedAt = new Date(startedAtStr).getTime(); 
+    const now = new Date().getTime();
+    
+    // Add 1 minute grace period
+    const allowedMs = (quiz.time_limit_minutes + 1) * 60 * 1000; 
+    if (now - startedAt > allowedMs) {
+      return res.status(400).json({ error: 'Time limit exceeded' });
+    }
+
+    const questionsRows = db.prepare(`
+      SELECT q.id, q.correct_option_index 
+      FROM quiz_questions qq 
+      JOIN questions q ON qq.question_id = q.id 
+      WHERE qq.quiz_id = ?
+    `).all(id) as any[];
+
+    let score = 0;
+    questionsRows.forEach(q => {
+      if (selectedAnswers[q.id] === q.correct_option_index) score++;
+    });
+
+    db.prepare(`
+      UPDATE quiz_attempts 
+      SET score = ?, submitted_at = datetime('now'), answers_json = ? 
+      WHERE id = ?
+    `).run(score, JSON.stringify(selectedAnswers), attemptId);
+
+    return res.json({ score, total: questionsRows.length });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/quiz/attempt/:attemptId/review', requireAuth, (req: AuthedRequest, res) => {
+  try {
+    const { attemptId } = req.params;
+
+    const attempt = db.prepare(`SELECT * FROM quiz_attempts WHERE id = ? AND user_id = ?`).get(attemptId, req.user!.uid);
+    if (!attempt) return res.status(404).json({ error: 'Attempt not found' });
+    if (!attempt.submitted_at) return res.status(400).json({ error: 'Quiz not yet submitted' });
+
+    const quiz = db.prepare(`SELECT * FROM quizzes WHERE id = ?`).get(attempt.quiz_id);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+
+    const questionRows = db.prepare(`
+      SELECT q.id, q.text, q.options, q.correct_option_index, q.explanation, q.subject, q.language, q.difficulty, qq.question_order
+      FROM quiz_questions qq
+      JOIN questions q ON qq.question_id = q.id
+      WHERE qq.quiz_id = ?
+      ORDER BY qq.question_order ASC
+    `).all(attempt.quiz_id) as any[];
+
+    const questions = questionRows.map(r => ({
+      id: r.id,
+      text: r.text,
+      options: JSON.parse(r.options),
+      correctOptionIndex: r.correct_option_index,
+      explanation: r.explanation || '',
+      subject: r.subject,
+      language: r.language,
+      difficulty: r.difficulty
+    }));
+
+    const selectedAnswers = attempt.answers_json ? JSON.parse(attempt.answers_json) : {};
+
+    return res.json({
+      attemptId: attempt.id,
+      quizTitle: quiz.title,
+      score: attempt.score,
+      totalQuestions: attempt.total_questions,
+      questions,
+      selectedAnswers
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/quiz/:id/leaderboard', requireAuth, (req: AuthedRequest, res) => {
+  try {
+    const { id } = req.params;
+    
+    const attempts = db.prepare(`
+      SELECT user_id, display_name, score, total_questions, 
+             (julianday(submitted_at) - julianday(started_at)) * 86400 as duration_seconds 
+      FROM quiz_attempts 
+      WHERE quiz_id = ? AND submitted_at IS NOT NULL
+      ORDER BY score DESC, duration_seconds ASC
+      LIMIT 100
+    `).all(id) as any[];
+
+    const result = attempts.map(a => ({
+      userId: a.user_id,
+      displayName: a.display_name,
+      score: a.score,
+      totalQuestions: a.total_questions,
+      durationSeconds: Math.round(a.duration_seconds || 0)
+    }));
+
+    return res.json({ leaderboard: result });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/quiz/history/me', requireAuth, (req: AuthedRequest, res) => {
+  try {
+    const history = db.prepare(`
+      SELECT 
+        q.id, q.title, q.quiz_code, 
+        (SELECT subject FROM questions qst JOIN quiz_questions qq ON qq.question_id = qst.id WHERE qq.quiz_id = q.id LIMIT 1) as subject,
+        qa.id as attempt_id, qa.score, qa.total_questions, qa.submitted_at as completed_at
+      FROM quiz_attempts qa
+      JOIN quizzes q ON qa.quiz_id = q.id
+      WHERE qa.user_id = ? AND qa.submitted_at IS NOT NULL
+      ORDER BY qa.submitted_at DESC
+      LIMIT 50
+    `).all(req.user!.uid) as any[];
+
+    const result = history.map(h => ({
+      id: h.id,
+      attemptId: h.attempt_id,
+      title: h.title,
+      quizCode: h.quiz_code,
+      subject: h.subject,
+      score: h.score,
+      totalQuestions: h.total_questions,
+      completedAt: h.completed_at
+    }));
+
+    return res.json({ history: result });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/quiz/leaderboard/global', requireAuth, (req: AuthedRequest, res) => {
+  try {
+    const globalBoard = db.prepare(`
+      SELECT qa.user_id, 
+             (SELECT display_name FROM quiz_attempts qa2 WHERE qa2.user_id = qa.user_id AND qa2.display_name IS NOT NULL ORDER BY qa2.started_at DESC LIMIT 1) as display_name,
+             SUM(CAST(qa.score AS FLOAT) / qa.total_questions * 10.0) as total_points, 
+             COUNT(qa.id) as quizzes_taken
+      FROM quiz_attempts qa
+      WHERE qa.submitted_at IS NOT NULL AND qa.total_questions > 0
+      GROUP BY qa.user_id
+      ORDER BY total_points DESC
+      LIMIT 15
+    `).all() as any[];
+
+    const result = globalBoard.map(g => ({
+      userId: g.user_id,
+      displayName: g.display_name,
+      totalPoints: Math.round((g.total_points || 0) * 10) / 10,
+      quizzesTaken: g.quizzes_taken || 0
+    }));
+
+    return res.json({ leaderboard: result });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

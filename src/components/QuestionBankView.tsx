@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Search, ShieldAlert, Sparkles, Check, CheckSquare, Square, Layers, Play, FolderKanban, Calendar, BookOpenCheck, Clock } from 'lucide-react';
+import { BookOpen, Search, ShieldAlert, Sparkles, Check, CheckSquare, Square, Layers, Play, FolderKanban, Calendar, BookOpenCheck, Clock, Timer } from 'lucide-react';
 import { Question, MockTest, ExamLanguage, ExamDifficulty } from '../types';
 
 // Helper: format ISO string or plain date into readable date + time
@@ -17,10 +17,11 @@ function formatDateTime(raw: string): { date: string; time: string | null } {
 interface QuestionBankViewProps {
   questions: Question[];
   tests: MockTest[];
-  onAssembleTest: (selectedQuestions: Question[]) => void;
+  onAssembleTest: (selectedQuestions: Question[], timeLimitMinutes?: number) => void;
+  onCreateSharedQuiz?: (selectedQuestions: Question[], timeLimitMinutes?: number) => void;
 }
 
-export default function QuestionBankView({ questions, tests, onAssembleTest }: QuestionBankViewProps) {
+export default function QuestionBankView({ questions, tests, onAssembleTest, onCreateSharedQuiz }: QuestionBankViewProps) {
   const [viewMode, setViewMode] = useState<'blocks' | 'questions'>('blocks');
   const [searchTerm, setSearchTerm] = useState('');
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
@@ -30,6 +31,8 @@ export default function QuestionBankView({ questions, tests, onAssembleTest }: Q
   // Selection states
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
   const [selectedBlockIds, setSelectedBlockIds] = useState<Record<string, boolean>>({});
+
+  const [timeLimit, setTimeLimit] = useState<number>(5);
 
   // Unique list of subjects for filters
   const subjectsList = ['all', ...Array.from(new Set(questions.map(q => q.subject)))];
@@ -92,21 +95,13 @@ export default function QuestionBankView({ questions, tests, onAssembleTest }: Q
     setSelectedBlockIds(newState);
   };
 
-  const handleAssembleQuestions = () => {
-    const chosen = questions.filter(q => selectedIds[q.id]);
-    if (chosen.length > 0) {
-      onAssembleTest(chosen);
-    }
-  };
-
-  const handleAssembleBlocks = () => {
+  const getChosenQuestionsFromBlocks = () => {
     const chosenQuestions: Question[] = [];
     const chosenBlocks = tests.filter(b => selectedBlockIds[b.id]);
     
     chosenBlocks.forEach(b => {
       b.questions.forEach(q => {
         if (!chosenQuestions.some(cq => cq.id === q.id)) {
-          // Normalise fields if necessary
           chosenQuestions.push({
             ...q,
             subject: q.subject || b.subject,
@@ -116,9 +111,22 @@ export default function QuestionBankView({ questions, tests, onAssembleTest }: Q
         }
       });
     });
+    return chosenQuestions;
+  };
 
-    if (chosenQuestions.length > 0) {
-      onAssembleTest(chosenQuestions);
+  const handleActionClick = (action: 'assemble_q' | 'assemble_b' | 'share_q' | 'share_b') => {
+    if (action === 'assemble_q') {
+      const chosen = questions.filter(q => selectedIds[q.id]);
+      if (chosen.length > 0) onAssembleTest(chosen, timeLimit);
+    } else if (action === 'assemble_b') {
+      const chosen = getChosenQuestionsFromBlocks();
+      if (chosen.length > 0) onAssembleTest(chosen, timeLimit);
+    } else if (action === 'share_q') {
+      const chosen = questions.filter(q => selectedIds[q.id]);
+      if (chosen.length > 0 && onCreateSharedQuiz) onCreateSharedQuiz(chosen, timeLimit);
+    } else if (action === 'share_b') {
+      const chosen = getChosenQuestionsFromBlocks();
+      if (chosen.length > 0 && onCreateSharedQuiz) onCreateSharedQuiz(chosen, timeLimit);
     }
   };
 
@@ -142,43 +150,61 @@ export default function QuestionBankView({ questions, tests, onAssembleTest }: Q
           </p>
         </div>
 
-        {/* View Mode Toggle Switch */}
-        <div className="flex bg-slate-100 p-1 rounded-xl shrink-0 self-start md:self-center border border-slate-200">
-          <button
-            onClick={() => {
-              setViewMode('blocks');
-              setSearchTerm('');
-            }}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-              viewMode === 'blocks'
-                ? 'bg-white text-indigo-700 shadow-xs'
-                : 'text-slate-700 hover:text-slate-850'
-            }`}
-          >
-            <FolderKanban className="h-3.5 w-3.5" />
-            Generated Blocks ({tests.length})
-          </button>
-          <button
-            onClick={() => {
-              setViewMode('questions');
-              setSearchTerm('');
-            }}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-              viewMode === 'questions'
-                ? 'bg-white text-indigo-700 shadow-xs'
-                : 'text-slate-700 hover:text-slate-850'
-            }`}
-          >
-            <BookOpenCheck className="h-3.5 w-3.5" />
-            All Questions ({questions.length})
-          </button>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          {/* Time Limit Picker */}
+          <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm shrink-0">
+            <Timer className="h-4 w-4 text-slate-400 mr-2" />
+            <span className="text-xs font-bold text-slate-600 mr-2 uppercase tracking-wider">Minutes:</span>
+            <input 
+              type="number" 
+              min={1} 
+              max={180}
+              value={timeLimit}
+              title="Time Limit in Minutes"
+              aria-label="Time Limit in Minutes"
+              onChange={(e) => setTimeLimit(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-16 bg-slate-50 border border-slate-200 rounded-lg text-center font-black text-sm py-1 outline-hidden focus:border-indigo-500 transition-colors text-indigo-700"
+            />
+          </div>
+
+          {/* View Mode Toggle Switch */}
+          <div className="flex bg-slate-100 p-1 rounded-xl shrink-0 border border-slate-200">
+            <button
+              onClick={() => {
+                setViewMode('blocks');
+                setSearchTerm('');
+              }}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                viewMode === 'blocks'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-700 hover:text-slate-850'
+              }`}
+            >
+              <FolderKanban className="h-3.5 w-3.5" />
+              Generated Blocks ({tests.length})
+            </button>
+            <button
+              onClick={() => {
+                setViewMode('questions');
+                setSearchTerm('');
+              }}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                viewMode === 'questions'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-700 hover:text-slate-850'
+              }`}
+            >
+              <BookOpenCheck className="h-3.5 w-3.5" />
+              All Questions ({questions.length})
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ── Top Action Banner (Blocks mode) ─────────────────────────── */}
       {viewMode === 'blocks' && selectedBlocksCount > 0 && (
         <div className="animate-fadeIn select-none">
-          <div className="bg-slate-900 border-2 border-indigo-500 text-white rounded-2xl px-5 py-3.5 flex items-center justify-between gap-4 shadow-[0_8px_30px_rgba(99,102,241,0.35)]">
+          <div className="bg-slate-900 border-2 border-indigo-500 text-white rounded-2xl px-5 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_8px_30px_rgba(99,102,241,0.35)]">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-xl bg-indigo-600/30 flex items-center justify-center shrink-0 animate-pulse">
                 <Play className="h-4 w-4 text-indigo-300 fill-current" />
@@ -190,14 +216,23 @@ export default function QuestionBankView({ questions, tests, onAssembleTest }: Q
                 </div>
               </div>
             </div>
-            <button
-              onClick={handleAssembleBlocks}
-              id="btn-top-start-blocks"
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs uppercase tracking-wider inline-flex items-center gap-1.5 transition-all shadow-md active:scale-95 shrink-0"
-            >
-              <Play className="h-3.5 w-3.5 fill-current" />
-              Start Test Now
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleActionClick('share_b')}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs uppercase tracking-wider inline-flex items-center gap-1.5 transition-all shadow-md active:scale-95 shrink-0"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Publish Shared Quiz
+              </button>
+              <button
+                onClick={() => handleActionClick('assemble_b')}
+                id="btn-top-start-blocks"
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs uppercase tracking-wider inline-flex items-center gap-1.5 transition-all shadow-md active:scale-95 shrink-0"
+              >
+                <Play className="h-3.5 w-3.5 fill-current" />
+                Start Test Now
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -205,7 +240,7 @@ export default function QuestionBankView({ questions, tests, onAssembleTest }: Q
       {/* ── Top Action Banner (Questions mode) ───────────────────────── */}
       {viewMode === 'questions' && selectedCount > 0 && (
         <div className="animate-fadeIn select-none">
-          <div className="bg-slate-900 border-2 border-indigo-500 text-white rounded-2xl px-5 py-3.5 flex items-center justify-between gap-4 shadow-[0_8px_30px_rgba(99,102,241,0.35)]">
+          <div className="bg-slate-900 border-2 border-indigo-500 text-white rounded-2xl px-5 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_8px_30px_rgba(99,102,241,0.35)]">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-xl bg-indigo-600/30 flex items-center justify-center shrink-0 animate-pulse">
                 <Play className="h-4 w-4 text-indigo-300 fill-current" />
@@ -217,14 +252,23 @@ export default function QuestionBankView({ questions, tests, onAssembleTest }: Q
                 </div>
               </div>
             </div>
-            <button
-              onClick={handleAssembleQuestions}
-              id="btn-top-start-questions"
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs uppercase tracking-wider inline-flex items-center gap-1.5 transition-all shadow-md active:scale-95 shrink-0"
-            >
-              <Play className="h-3.5 w-3.5 fill-current" />
-              Start Exam Now
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleActionClick('share_q')}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs uppercase tracking-wider inline-flex items-center gap-1.5 transition-all shadow-md active:scale-95 shrink-0"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Publish Shared Quiz
+              </button>
+              <button
+                onClick={() => handleActionClick('assemble_q')}
+                id="btn-top-start-questions"
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs uppercase tracking-wider inline-flex items-center gap-1.5 transition-all shadow-md active:scale-95 shrink-0"
+              >
+                <Play className="h-3.5 w-3.5 fill-current" />
+                Start Exam Now
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -339,7 +383,7 @@ export default function QuestionBankView({ questions, tests, onAssembleTest }: Q
 
             {selectedBlocksCount > 0 && (
               <button
-                onClick={handleAssembleBlocks}
+                onClick={() => handleActionClick('assemble_b')}
                 className="px-3.5 py-1.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg text-3xs font-black shadow-xs tracking-wider uppercase inline-flex items-center gap-1.5 transition-all"
               >
                 <Play className="h-3 w-3 fill-current" />
@@ -453,7 +497,7 @@ export default function QuestionBankView({ questions, tests, onAssembleTest }: Q
 
             {selectedCount > 0 && (
               <button
-                onClick={handleAssembleQuestions}
+                onClick={() => handleActionClick('assemble_q')}
                 className="px-3.5 py-1.5 bg-indigo-650 hover:bg-indigo-755 text-white rounded-lg text-3xs font-black shadow-xs tracking-wider uppercase inline-flex items-center gap-1 transition-all"
               >
                 <Play className="h-3 w-3 fill-current" />

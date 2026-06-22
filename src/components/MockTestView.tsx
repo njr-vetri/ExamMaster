@@ -191,7 +191,6 @@ export default function MockTestView({ test, onSubmit, onExit }: MockTestViewPro
                   key={idx}
                   onClick={() => setCurrentIndex(idx)}
                   className={`h-9 w-full rounded-xl border text-xs font-bold transition-all flex items-center justify-center ${bgClass}`}
-                  id={`nav-square-${idx}`}
                 >
                   {(idx + 1).toString().padStart(2, '0')}
                 </button>
@@ -220,9 +219,14 @@ export default function MockTestView({ test, onSubmit, onExit }: MockTestViewPro
           <div className="bg-white border border-slate-100 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xs">
             {/* Subject and Flag */}
             <div className="flex items-center justify-between gap-4 border-b border-slate-50 pb-4">
-              <span className="text-xs bg-indigo-50 text-indigo-700 font-bold px-3 py-1 rounded-full uppercase">
-                Question {currentIndex + 1} of {test.questions.length}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs bg-indigo-50 text-indigo-700 font-bold px-3 py-1 rounded-full uppercase">
+                  Question {currentIndex + 1} of {test.questions.length}
+                </span>
+                <span className="text-xs bg-amber-50 text-amber-700 font-bold px-2.5 py-1 rounded-full border border-amber-100">
+                  1 Point
+                </span>
+              </div>
 
               <button
                 type="button"

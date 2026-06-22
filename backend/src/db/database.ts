@@ -92,6 +92,36 @@ export class SyncDb {
         estimated_tokens INTEGER DEFAULT 0,
         created_at TEXT DEFAULT (datetime('now'))
       );
+
+      CREATE TABLE IF NOT EXISTS quizzes (
+        id TEXT PRIMARY KEY,
+        quiz_code TEXT UNIQUE,
+        title TEXT NOT NULL,
+        created_by TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft',
+        time_limit_minutes INTEGER NOT NULL,
+        created_at TEXT DEFAULT (datetime('now')),
+        published_at TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS quiz_questions (
+        quiz_id TEXT NOT NULL,
+        question_id TEXT NOT NULL,
+        question_order INTEGER NOT NULL,
+        PRIMARY KEY (quiz_id, question_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS quiz_attempts (
+        id TEXT PRIMARY KEY,
+        quiz_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        display_name TEXT,
+        score INTEGER,
+        total_questions INTEGER NOT NULL,
+        started_at TEXT NOT NULL,
+        submitted_at TEXT,
+        UNIQUE(quiz_id, user_id)
+      );
     `);
 
     // Clean up old title naming conventions for existing tests
@@ -116,6 +146,14 @@ export class SyncDb {
     
     try {
       this.exec(`ALTER TABLE chat_history ADD COLUMN user_id TEXT;`);
+    } catch (err) { /* column likely exists */ }
+
+    try {
+      this.exec(`ALTER TABLE quiz_attempts ADD COLUMN display_name TEXT;`);
+    } catch (err) { /* column likely exists */ }
+
+    try {
+      this.exec(`ALTER TABLE quiz_attempts ADD COLUMN answers_json TEXT;`);
     } catch (err) { /* column likely exists */ }
 
     console.log('✅ SQLite (sql.js) database initialized');

@@ -84,4 +84,5 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
   }
 }
 
+
 export type { AuthedRequest };

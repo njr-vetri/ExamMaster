@@ -2,7 +2,7 @@ import type { Response, NextFunction } from 'express';
 import { db } from '../db/database.js';
 import type { AuthedRequest } from './auth.js';
 
-const DAILY_GENERATION_LIMIT = Number(process.env.AI_DAILY_GENERATION_LIMIT || 20);
+const DAILY_GENERATION_LIMIT = Number(process.env.AI_DAILY_GENERATION_LIMIT || 1000);
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
