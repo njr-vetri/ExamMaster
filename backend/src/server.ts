@@ -65,7 +65,17 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-async function trackUsage(userId: string, eventType: 'generation' | 'upload', estimatedTokens = 0) {
+async function trackUsage(userId: string, eventType: 'generation' | 'upload' | 'test_completion' | 'quiz_completion', estimatedTokens = 0) {
+  // For streak events, only track the first completion per day
+  if (eventType === 'test_completion' || eventType === 'quiz_completion') {
+    const existing = await db.prepare(`
+      SELECT 1 FROM usage_events
+      WHERE user_id = ? AND usage_date = ? AND event_type IN ('test_completion', 'quiz_completion')
+      LIMIT 1
+    `).get(userId, todayKey());
+    if (existing) return; // Already tracked today
+  }
+
   await db.prepare(`
     INSERT INTO usage_events (id, user_id, event_type, usage_date, estimated_tokens)
     VALUES (?, ?, ?, ?, ?)
@@ -297,6 +307,12 @@ app.post('/api/tests', async (req: AuthedRequest, res) => {
       t.totalTime, t.selectedAnswers ? JSON.stringify(t.selectedAnswers) : null,
       t.isCompleted ? 1 : 0
     );
+
+    // Track test completion for streak counting
+    if (t.isCompleted) {
+      await trackUsage(req.user!.uid, 'test_completion', 0);
+    }
+
     return res.json({ ok: true });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -354,7 +370,7 @@ app.get('/api/admin/usage', async (req: AuthedRequest, res) => {
       WHERE user_id = ?
       GROUP BY usage_date
       ORDER BY usage_date DESC
-      LIMIT 14
+      LIMIT 90
     `).all(userId) as any[];
 
     const daily = rows.reverse().map(row => ({
@@ -547,6 +563,9 @@ app.post('/api/quiz/:id/submit', requireAuth, async (req: AuthedRequest, res) =>
       SET score = ?, submitted_at = CURRENT_TIMESTAMP, answers_json = ? 
       WHERE id = ?
     `).run(score, JSON.stringify(selectedAnswers), attemptId);
+
+    // Track quiz completion for streak counting
+    await trackUsage(req.user!.uid, 'quiz_completion', 0);
 
     return res.json({ score, total: questionsRows.length });
   } catch (err: any) {
